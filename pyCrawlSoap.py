@@ -62,8 +62,14 @@ async def main(URL, pbar):
         for result in results:
             page = requests.get(result.get('href'))
             soup = BeautifulSoup(page.content, "html.parser")
+            ranking = ""
             if soup.select(".card-footer"):
-                ranking = soup.select(".card-footer")[0].getText().strip()
+                matchingString = ". place"
+                if(matchingString in soup.select(".card-footer")[0].get_text().strip()):
+                    indexOfAPlace = soup.select(".card-footer")[0].get_text().strip().find(matchingString)
+                    ranking = soup.select(".card-footer")[0].getText().strip()[:indexOfAPlace]
+                else:
+                    ranking = "N/A"
             if soup.select('h1'):
                 title = soup.select('h1')[0]
             i = 0
@@ -79,7 +85,11 @@ async def main(URL, pbar):
             if soup.select(".range-chart-row-value"):
                 startSalary = soup.select(".range-chart-row-value > span")[1].getText().replace(",", "").replace("K", "000")[:-3].strip()
                 endSalary = soup.select(".range-chart-row-value > span")[3].getText().replace(",", "").replace("K", "000")[:-3].strip()
-                averageSalary = (int(startSalary) + int(endSalary)) / 2
+                averageSalary = (float(startSalary) + float(endSalary)) / 2
+            else:
+                averageSalary = "N/A"
+                startSalary = "N/A"
+                endSalary = "N/A"
 
             # print({
             #     "position": position,
@@ -90,14 +100,14 @@ async def main(URL, pbar):
             #     "ranking": ranking,
             # })
  
-        csvFriendlyData.append({"Job Title": position, "Category": category, "Start Salary": startSalary, "End Salary": endSalary, "Average Salary": averageSalary, "Ranking": ranking})
+            csvFriendlyData.append({"Job Title": position, "Category": category, "Start Salary": startSalary, "End Salary": endSalary, "Average Salary": averageSalary, "Ranking": ranking})
         pbar.update(1)
 
     except Exception as e:
-        print("error", e)
+        print("⚠️ error", e)
         pass
 
-pbar = tqdm(total=len(URLS))
+pbar = tqdm(total=len(URLS), colour="green")
 
 for URL in URLS:
     asyncio.get_event_loop().run_until_complete(main(URL, pbar))
@@ -108,6 +118,7 @@ with open('salaries.csv', 'w') as csvfile:
     writer.writeheader()
     for data in csvFriendlyData:
         writer.writerow(data)
+        
 pbar.close()
 
 endTime = datetime.datetime.now()
